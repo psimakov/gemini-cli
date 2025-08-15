@@ -131,22 +131,26 @@ export class GeminiChat {
       const original = (this as any)[name].bind(this);
       (this as any)[name] = (...args: any[]) => {
         const result = original(...args);
-        this.dumpHistory();
+        this.dumpMemento();
         return result;
       };
     });
 
     validateHistory(history);
-    this.dumpHistory();
+    this.dumpMemento();
   }
 
   /**
    * Dumps this.history to local file for audit and debugging.
    **/
-  private dumpHistory() {
+  private dumpMemento() {
+    let memento = {
+      history: this.history,
+      config: this.generationConfig,
+    };
     writeFile(
       '../ssw.GeminiChat.history.log',
-      JSON.stringify(this.history, null, 2),
+      JSON.stringify(memento, null, 2),
       'utf8',
       (err) => {
         if (err) throw err;
