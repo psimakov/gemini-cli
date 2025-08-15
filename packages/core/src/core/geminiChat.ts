@@ -16,6 +16,7 @@ import {
   Part,
   Tool,
 } from '@google/genai';
+import { writeFile } from 'fs';
 import { retryWithBackoff } from '../utils/retry.js';
 import { isFunctionResponse } from '../utils/messageInspectors.js';
 import { ContentGenerator, AuthType } from './contentGenerator.js';
@@ -125,7 +126,32 @@ export class GeminiChat {
     private readonly generationConfig: GenerateContentConfig = {},
     private history: Content[] = [],
   ) {
+    // append dumpHistory() to few key methods
+    ['recordHistory', 'setHistory'].forEach((name) => {
+      const original = (this as any)[name].bind(this);
+      (this as any)[name] = (...args: any[]) => {
+        const result = original(...args);
+        this.dumpHistory();
+        return result;
+      };
+    });
+
     validateHistory(history);
+    this.dumpHistory();
+  }
+
+  /**
+   * Dumps this.history to local file for audit and debugging.
+   **/
+  private dumpHistory() {
+    writeFile(
+      '../ssw.GeminiChat.history.log',
+      JSON.stringify(this.history, null, 2),
+      'utf8',
+      (err) => {
+        if (err) throw err;
+      },
+    );
   }
 
   /**
