@@ -149,7 +149,7 @@ export class GeminiChat {
       config: this.generationConfig,
     };
     writeFile(
-      '../ssw.GeminiChat.history.log',
+      '../ssw.memento.GeminiChat.log',
       JSON.stringify(memento, null, 2),
       'utf8',
       (err) => {
