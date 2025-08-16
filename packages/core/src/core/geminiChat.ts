@@ -128,7 +128,10 @@ export class GeminiChat {
   ) {
     // append dumpHistory() to few key methods
     ['recordHistory', 'setHistory'].forEach((name) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const original = (this as any)[name].bind(this);
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (this as any)[name] = (...args: any[]) => {
         const result = original(...args);
         this.dumpMemento();
@@ -144,7 +147,7 @@ export class GeminiChat {
    * Dumps this.history to local file for audit and debugging.
    **/
   private dumpMemento() {
-    let memento = {
+    const memento = {
       history: this.history,
       config: this.generationConfig,
     };
