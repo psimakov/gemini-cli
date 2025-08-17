@@ -126,7 +126,7 @@ export class GeminiChat {
     private readonly generationConfig: GenerateContentConfig = {},
     private history: Content[] = [],
   ) {
-    // append dumpHistory() to few key methods
+    // append dumpMemento() to few key methods
     ['recordHistory', 'setHistory'].forEach((name) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const original = (this as any)[name].bind(this);
@@ -134,27 +134,35 @@ export class GeminiChat {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (this as any)[name] = (...args: any[]) => {
         const result = original(...args);
-        this.dumpMemento();
+        this.dumpMemento(null, { encoding: 'utf8', flag: 'a' });
         return result;
       };
     });
 
     validateHistory(history);
-    this.dumpMemento();
+    this.dumpMemento(
+      { status: 'Initialized' },
+      { encoding: 'utf8', flag: 'w' },
+    );
   }
 
   /**
    * Dumps this.history to local file for audit and debugging.
    **/
-  private dumpMemento() {
-    const memento = {
-      history: this.history,
-      config: this.generationConfig,
-    };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private dumpMemento(memento: any, options: any) {
+    if (!memento) {
+      memento = {
+        config: this.generationConfig,
+        history: this.history,
+      };
+    }
+    memento['datetime'] = new Date().toISOString();
+
     writeFile(
       '../ssw.memento.GeminiChat.log',
       JSON.stringify(memento, null, 2),
-      'utf8',
+      options,
       (err) => {
         if (err) throw err;
       },

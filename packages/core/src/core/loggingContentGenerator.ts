@@ -14,6 +14,7 @@ import {
   GenerateContentResponseUsageMetadata,
   GenerateContentResponse,
 } from '@google/genai';
+import { writeFile } from 'fs';
 import {
   ApiRequestEvent,
   ApiResponseEvent,
@@ -48,7 +49,50 @@ export class LoggingContentGenerator implements ContentGenerator {
   constructor(
     private readonly wrapped: ContentGenerator,
     private readonly config: Config,
-  ) {}
+  ) {
+    // append dumpMemento() to few key methods
+    ['logApiRequest', '_logApiError', '_logApiResponse'].forEach((name) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const original = (this as any)[name].bind(this);
+      Object.defineProperty(this, name, {
+        value: (...args: unknown[]) => {
+          const result = original(...args);
+          this.dumpMemento(
+            {
+              function: name,
+              args,
+            },
+            { encoding: 'utf8', flag: 'a' },
+          );
+          return result;
+        },
+        writable: true,
+        configurable: true,
+        enumerable: false,
+      });
+    });
+
+    this.dumpMemento(
+      { status: 'Initialized' },
+      { encoding: 'utf8', flag: 'w' },
+    );
+  }
+
+  /**
+   * Dumps this.history to local file for audit and debugging.
+   **/
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private dumpMemento(memento: any, options: any) {
+    memento['datetime'] = new Date().toISOString();
+    writeFile(
+      '../ssw.memento.LoggingContentGenerator.ndjson',
+      JSON.stringify(memento) + '\n',
+      options,
+      (err) => {
+        if (err) throw err;
+      },
+    );
+  }
 
   private logApiRequest(
     contents: Content[],
