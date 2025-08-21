@@ -134,16 +134,27 @@ export class GeminiChat {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (this as any)[name] = (...args: any[]) => {
         const result = original(...args);
-        this.dumpMemento(null, { encoding: 'utf8', flag: 'a' });
+        this.dumpMemento(
+          {
+            function: 'GeminiChat.' + name,
+          },
+          { encoding: 'utf8', flag: 'a' },
+        );
         return result;
       };
     });
 
     validateHistory(history);
     this.dumpMemento(
-      { status: 'Initialized' },
+      {
+        function: 'GeminiChat.constructor',
+      },
       { encoding: 'utf8', flag: 'w' },
     );
+  }
+
+  private getStack() {
+    return new Error().stack || '';
   }
 
   /**
@@ -151,16 +162,13 @@ export class GeminiChat {
    **/
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private dumpMemento(memento: any, options: any) {
-    if (!memento) {
-      memento = {
-        config: this.generationConfig,
-        history: this.history,
-      };
-    }
+    memento['config'] = this.generationConfig;
+    memento['history'] = this.history;
     memento['datetime'] = new Date().toISOString();
+    memento['stack'] = this.getStack();
 
     writeFile(
-      '../ssw.memento.GeminiChat.log',
+      '../ssw.memento.Reception.log',
       JSON.stringify(memento, null, 2),
       options,
       (err) => {

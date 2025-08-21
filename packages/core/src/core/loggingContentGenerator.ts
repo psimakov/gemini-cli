@@ -59,7 +59,7 @@ export class LoggingContentGenerator implements ContentGenerator {
           const result = original(...args);
           this.dumpMemento(
             {
-              function: name,
+              function: 'LoggingContentGenerator.' + name,
               args,
             },
             { encoding: 'utf8', flag: 'a' },
@@ -73,19 +73,27 @@ export class LoggingContentGenerator implements ContentGenerator {
     });
 
     this.dumpMemento(
-      { status: 'Initialized' },
+      {
+        function: 'LoggingContentGenerator.constructor',
+      },
       { encoding: 'utf8', flag: 'w' },
     );
   }
 
+  private getStack() {
+    return new Error().stack || '';
+  }
+
   /**
-   * Dumps this.history to local file for audit and debugging.
+   * Dumps memento to local file for audit and debugging.
    **/
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private dumpMemento(memento: any, options: any) {
     memento['datetime'] = new Date().toISOString();
+    memento['stack'] = this.getStack();
+
     writeFile(
-      '../ssw.memento.LoggingContentGenerator.ndjson',
+      '../ssw.memento.Kitchen.ndjson',
       JSON.stringify(memento) + '\n',
       options,
       (err) => {

@@ -16,6 +16,7 @@ import {
   ToolResult,
   ToolResultDisplay,
 } from '../tools/tools.js';
+import { writeFile } from 'fs';
 import { ToolErrorType } from '../tools/tool-error.js';
 import { getResponseText } from '../utils/generateContentResponseUtilities.js';
 import { reportError } from '../utils/errorReporting.js';
@@ -167,6 +168,28 @@ export class Turn {
   private debugResponses: GenerateContentResponse[];
   finishReason: FinishReason | undefined;
 
+  private getStack() {
+    return new Error().stack || '';
+  }
+
+  /**
+   * Dumps memento to local file for audit and debugging.
+   **/
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private dumpMemento(memento: any) {
+    memento['datetime'] = new Date().toISOString();
+    memento['stack'] = this.getStack();
+
+    writeFile(
+      '../ssw.memento.Kitchen.ndjson',
+      JSON.stringify(memento) + '\n',
+      { encoding: 'utf8', flag: 'a' },
+      (err) => {
+        if (err) throw err;
+      },
+    );
+  }
+
   constructor(
     private readonly chat: GeminiChat,
     private readonly prompt_id: string,
@@ -174,6 +197,13 @@ export class Turn {
     this.pendingToolCalls = [];
     this.debugResponses = [];
     this.finishReason = undefined;
+
+    this.dumpMemento({
+      function: 'Turn.constructor',
+      args: {
+        prompt_id,
+      },
+    });
   }
   // The run method yields simpler events suitable for server logic
   async *run(
@@ -181,6 +211,14 @@ export class Turn {
     signal: AbortSignal,
   ): AsyncGenerator<ServerGeminiStreamEvent> {
     try {
+      this.dumpMemento({
+        function: 'Turn.run:enter',
+        args: {
+          req,
+          signal,
+        },
+      });
+
       const responseStream = await this.chat.sendMessageStream(
         {
           message: req,
@@ -192,6 +230,13 @@ export class Turn {
       );
 
       for await (const resp of responseStream) {
+        this.dumpMemento({
+          function: 'Turn.run:await',
+          args: {
+            resp,
+          },
+        });
+
         if (signal?.aborted) {
           yield { type: GeminiEventType.UserCancelled };
           // Do not add resp to debugResponses if aborted before processing
@@ -229,6 +274,13 @@ export class Turn {
         // Handle function calls (requesting tool execution)
         const functionCalls = resp.functionCalls ?? [];
         for (const fnCall of functionCalls) {
+          this.dumpMemento({
+            function: 'Turn.run:fnCall',
+            args: {
+              fnCall,
+            },
+          });
+
           const event = this.handlePendingFunctionCall(fnCall);
           if (event) {
             yield event;
@@ -239,6 +291,13 @@ export class Turn {
         const finishReason = resp.candidates?.[0]?.finishReason;
 
         if (finishReason) {
+          this.dumpMemento({
+            function: 'Turn.run:finish',
+            args: {
+              finishReason,
+            },
+          });
+
           this.finishReason = finishReason;
           yield {
             type: GeminiEventType.Finished,
